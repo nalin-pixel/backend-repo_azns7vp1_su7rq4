@@ -1,5 +1,6 @@
 import os
-from fastapi import FastAPI
+from typing import List, Optional
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -19,6 +20,96 @@ def read_root():
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+# Simple in-memory mock for demo purposes. In a real app, use the provided MongoDB helpers.
+MOCK_JOBS = [
+    {
+        "id": 1,
+        "title": "Frontend Engineer (React)",
+        "company": "Acme Corp",
+        "location": "Remote",
+        "type": "Full-time",
+        "salary": 155000,
+        "description": "Build delightful web experiences with React, Vite, and modern tooling.",
+        "url": "https://example.com/jobs/1",
+        "tags": ["react", "vite", "javascript", "frontend"],
+    },
+    {
+        "id": 2,
+        "title": "Backend Engineer (FastAPI)",
+        "company": "DataWorks",
+        "location": "New York, NY",
+        "type": "Full-time",
+        "salary": 165000,
+        "description": "Design APIs, optimize queries, and ship reliable services with FastAPI.",
+        "url": "https://example.com/jobs/2",
+        "tags": ["python", "fastapi", "mongodb", "api"],
+    },
+    {
+        "id": 3,
+        "title": "Full Stack Developer",
+        "company": "BrightLabs",
+        "location": "San Francisco, CA",
+        "type": "Hybrid",
+        "salary": 180000,
+        "description": "Own features end-to-end across React frontends and Python backends.",
+        "url": "https://example.com/jobs/3",
+        "tags": ["react", "node", "python", "fullstack"],
+    },
+    {
+        "id": 4,
+        "title": "Data Engineer",
+        "company": "StreamFlow",
+        "location": "Austin, TX",
+        "type": "Contract",
+        "salary": 120000,
+        "description": "Build data pipelines, ETL jobs, and analytics infrastructure.",
+        "url": "https://example.com/jobs/4",
+        "tags": ["python", "sql", "airflow", "etl"],
+    },
+    {
+        "id": 5,
+        "title": "Mobile Developer (React Native)",
+        "company": "PocketTech",
+        "location": "Remote",
+        "type": "Full-time",
+        "salary": 150000,
+        "description": "Ship high-quality mobile apps with React Native and TypeScript.",
+        "url": "https://example.com/jobs/5",
+        "tags": ["react", "react-native", "typescript", "mobile"],
+    },
+]
+
+@app.get("/api/jobs")
+def get_jobs(
+    q: Optional[str] = Query(None, description="Search term for title/company/tags"),
+    location: Optional[str] = Query(None, description="Preferred location"),
+    skills: Optional[str] = Query(None, description="Comma-separated skills"),
+    experience: Optional[str] = Query(None, description="Experience level"),
+    limit: int = Query(12, ge=1, le=50),
+):
+    results = MOCK_JOBS
+
+    def matches(job):
+        text = (q or "").lower()
+        loc = (location or "").lower()
+        skill_list = [s.strip().lower() for s in (skills or "").split(",") if s.strip()]
+
+        if text:
+            hay = " ".join([
+                job["title"], job["company"], job["description"], " ".join(job.get("tags", []))
+            ]).lower()
+            if text not in hay:
+                return False
+        if loc and loc not in job["location"].lower():
+            return False
+        if skill_list and not any(s in job.get("tags", []) for s in skill_list):
+            return False
+        return True
+
+    filtered = [j for j in results if matches(j)][:limit]
+
+    return {"jobs": filtered, "count": len(filtered)}
 
 @app.get("/test")
 def test_database():
